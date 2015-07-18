@@ -1,0 +1,484 @@
+---
+title: "README"
+author: "Andreas R. Formiconi"
+date: "18/07/2015"
+output: html_document
+---
+
+---
+output: html_document
+---
+## Elaborazione dati di grading da un backup da Moodle
+## utilizzato nell'insegnamento di informatica al primo
+## anno di Medicina a Firenze
+
+---
+
+## Versione molto preliminare
+## Documentazione da rifire e da corredare con un
+## set di dati fittizi a scopo dimostrativo
+## Attualmente è poco più del semplice diario di lavoro
+## Manca anche il databook
+
+## Rendo tuttavia disponibile il codice insieme al diario
+## di lavoro in occasione della presentazione di un paper alla
+## Multiconferenza Italiana su e-Learning, Media Education e MoodleMoot
+## che avrà luogo a Genova dal 9 all'11 settembre 2015.
+
+
+---
+
+### Preprocessing dei dati grezzi
+
+
+---
+
+I raw data consistono in un backup completo di Moodle, che arriva in formato MBZ.
+In realtà si tratta di un file zippato, per espanderlo basta rinominarlo con estensione ZIP e unzipparlo.
+Produce un insieme di file XML che possono essere acceduti con le funzioni della libreria R XML.
+
+Il backup si ottiene in Moodle da 
+
+Amministrazione del corso ->
+Backup (check su tutto eccetto "MS Common Cartridge" e "Rendi anonimi i dati utenti") ->
+Avanti (check su tutto) ->
+Esegui Backup ->
+Una volta costruito il backup sceglierlo nella lista per scaricarlo.
+
+Per impostare correttamente il backup nel modo precedente, con tutti i dati utente,
+occorre avere diritti amministrativi adeguati: chiedere a Jona le specifiche.
+È importante che vengano scaricati i dati utente per poter accedere agli elaborati
+caricati peer il peer-assessment.
+
+Rinominare il file e quindi espandere:
+```
+mv backup-moodle2-course-88-informatica-20150325-1447.mbz backup-moodle2-course-88-informatica-20150325-1447.mbz
+unzip backup-moodle2-course-88-informatica-20150325-1447.mbz
+```
+Si ottengono i file e le cartelle seguenti (le cartelle sono quelle senza estensione del nome):
+```
+activities
+badges.xml
+completion.xml
+course
+files
+files.xml
+gradebook.xml
+groups.xml
+moodle_backup.log
+moodle_backup.xml
+outcomes.xml
+questions.xml
+roles.xml
+scales.xml
+sections
+users.xml
+```
+
+### Estrazione dei dati necessari dai dati grezzi XML
+### Extraction of necessary data from the XML raw data
+
+L'estrazione dei dati viene eseguita dalla funzione raw.tidy() che rende il data frame dok
+a partire dal file files.xml:
+
+```
+str(dok)
+'data.frame':        475 obs. of  9 variables:
+ $ userid             : Factor w/ 465 levels "2039","2105",..: 18 20 23 22 16 21 24 27 5 31 ...
+ $ Nome               : Factor w/ 462 levels "Tizio Caio",..: 411 291 276 238 401 221 41 335 431 81 ...
+ $ hash.file          : Factor w/ 479 levels "005286630103ed56fcf20b326252050a49f8937a",..: 132 406 159 383 452 459 290 316 361 343 ...
+ $ Unix.time          : Factor w/ 609 levels "1425835417","1425838084",..: 473 5 154 280 9 7 8 10 11 13 ...
+ $ Iscrizione         : Factor w/ 609 levels "dom mar 08 18:23:37",..: 353 5 136 54 9 7 8 159 160 162 ...
+ $ Consegna           : Factor w/ 626 levels "dom mar 08 18:29:56",..: 355 3 135 54 7 4 5 154 155 157 ...
+ $ Argomento          : chr  "2" "3" "2" "4" ...
+ $ Valutazione.Ricerca: chr  "B" "A" "C" "B" ...
+ $ Valutazione.Testo  : chr  "B" "A" "B" "B" ...
+
+userid: id studente nel file users.xml
+Nome:   Nome studente così come scritto dal medesimo nella consegna degli elaborati
+hash.file:      Hash che identifica l'elaborato caricato dallo studente
+Unix.time:      Tempo upload in Unix time
+Iscrizione:     Tempo iscrizione studente alla piattaforma
+Consegna:       Tempo upload elaborato
+Argomento:      Codice argomento tema libero secondo la tabella nel file KEYWORDS
+Valutazione.Ricerca:    Voto ricerca con Pubmed
+Valutazione.Testo:      Voto tema libero                             
+```
+
+---
+
+### Valutazione
+### Grading
+
+La valutazione viene fatta con la seguente sequenza di operazioni
+```
+head.dok(n); how.many.graded()          # mostra i primi n risultati e dice quanti sono in totale
+                                        # ok, si può invertire e fare meglio...
+nome <- "pincopall"; get.stud(nome)     # tira fuori di dati relativi al nome che contiene
+                                        # la stringa "pincopall"
+get.stud("pincopall")
+launch.lo(nome)                         # lancia LibreOffice sul file con hash hash.file
+set.valutazione(nome, 1, "B", "A")      # Assegnazione di argomento del tema libero
+```                                     # voto ricerca bibliografica e voto testo
+
+### Calcolo del voto finale
+
+Per avere una lista di tutti i voti finali degli studenti:  
+```
+ddd <- all.grades()
+
+str(ddd)
+'data.frame':        461 obs. of  2 variables:
+ $ Nome: chr  "Tizio Caio" "Sempronio Tullio" "Tizia Caia" "Caia Tullia" ...
+ $ Voto: chr  "30" "30 lode" "30" "26" ...
+```
+### Revisione e controllo di casi particolari
+
+Con la seguente sequenza:
+ 
+# ricalcolo il voto per tutti nel data frame ddd
+ddd <- all.grades()
+# lo scrivo in un file dove poi con vi vado a cercare il primo voto non valido 
+write.table(ddd, "./voti-finali-da-rifinire.txt")
+# vado a vedere i dati del caso che ho trovato...
+nome <- "pincopall"; get.stud(nome)
+# e il relativo elaborato
+launch.lo(nome)
+# se possibile assegno i voti mancanti
+set.valutazione(nome, 2, "B", "A")
+# ricalcolo tutti voti finali
+ddd <- all.grades()
+# li ricontrollo e così via...
+write.table(ddd, "./voti-finali-da-rifinire.txt")
+
+### Unificazione con i dati disponibili in users.xml (anagrafica di Moodle)
+
+A questo punto voglio ricavare i dati completi da Users...
+
+du <- sapply(ddd[,1], split.name)                               # Viene una matrice da trasporre
+ddu <- data.frame(t(du))                                        # Traspongo e trasformo in data frame
+names(ddu) <- c("Nome", "Cognome", "Email", "Matricola")        # Assegno nomi appropriati alle variabili
+
+Attenzione perché questa è un'operazione lunga. La funzione responsabile è split.name() e
+una singola chiamata richiede circa 43 secondi.
+
+        # Recupera i dati dello studente nel cui nome e cognome, così come memorizzato
+        # in files.xml, si suppone vi sia la stringa chars con get.stud();
+        # da questa si ricava lo userid che ci consente di recuperare da users.xml (anagrafica Moodle)
+        # nome, cognome, email e matricola, rispettivamente nei nodi XML
+        # firstname, lastname, email e username (!)
+        
+#### Profilazione split.name
+
+> system.time(split.name("adavecch"))
+   user  system elapsed 
+ 43.684   0.000  43.668 
+> system.tiime({uid <- as.character(get.stud("adavecch")["userid"][[1]])})
+Error: could not find function "system.tiime"
+> system.time({uid <- as.character(get.stud("adavecch")["userid"][[1]])})
+   user  system elapsed 
+  0.012   0.000   0.009 
+> system.time({users <- xmlTreeParse("users.xml")})
+   user  system elapsed 
+  0.208   0.004   0.213 
+> system.time({usr <- xmlRoot(users)})
+   user  system elapsed 
+      0       0       0 
+> system.time({nn <- getNodeSet(usr, paste("//users/user[@id=",uid,"]"))})
+   user  system elapsed 
+ 42.200   0.012  42.302 
+> system.time({c(xmlValue(getNodeSet(nn[[1]], "//firstname")[[1]]), xmlValue(getNodeSet(nn[[1]], "//lastname")[[1]]), xmlValue(getNodeSet(nn[[1]], "//email")[[1]]), xmlValue(getNodeSet(nn[[1]], "//username")[[1]]))
++ })
+   user  system elapsed 
+  0.208   0.000   0.207 
+  
+si vede che la funzione responsabile è getNodeSet(). Poiché l'insieme dei nodi può essere memorizzato
+appena possibile ottimizzerò chiamando la funzione una volta per tutte... (vedere esercizio fatto con R. Peng)
+
+ # Infine il tidy set completo
+
+dd <- unique(head.dok(nrow(dok)))
+ddd <- all.grades()
+tidy.all <- cbind(ddu, dd$Argomento, dd$Valutazione.Ricerca, dd$Valutazione.Testo, ddd$Voto, stringsAsFactors = FALSE)
+library(dplyr)          # mi serve per fare facilmente le seguenti due trasformazioni
+ # Caratteri e no fattori per cambiare case dopo...
+tidy.all <- transform(tidy.all, Nome = as.character(Nome))              
+tidy.all <- transform(tidy.all, Cognome = as.character(Cognome))
+
+for(ii in 1:nrow(tidy.all)){tidy.all$Nome[ii] <- simpleCap(as.character(tidy.all$Nome[ii]))}    # Converto i nomi in Capital Case
+for(ii in 1:nrow(tidy.all)){tidy.all$Cognome[ii] <- simpleCap(as.character(tidy.all$Cognome[ii]))}          # Converto i cognomi in Capital Case
+
+... e riaggiusto i nomi...
+
+names(tidy.all) <- c("Nome", "Cognome", "Email", "Matricola", "Argomento", "Valutazione.Ricerca", "Valutazione.Testo", "Voto")
+
+### Casi particolari per questa sessione
+
+Mi era rimasto Sebastian Menchi, rimandato invece a settembre:
+
+t1 <- filter(tidy.all, !(Cognome == "Menchi"))
+
+Poi per un motivo che ora non so ho un duplicato di Gianmarco Rosini 
+(da migliorare la gestione delle duplicazioni e da capirne l'origine...)
+
+t2 <- unique(t1)
+
+...rimetto in tidy.all...
+
+tidy.all <- t2
+
+2015-06-16 10:31:43
+Ho un altro duplicato, 
+
+Sebastian Piccin
+
+che risolvo in quest'altro modo, con dplyr
+tidy.all.particolari <- tidy.all.particolari %>% distinct(Nome, Cognome)
+
+che funziona su righe totalmente duplicate 
+2015-06-16 11:20:31
+
+
+### Per generare una lista da inviare a Renza e Jona
+
+tout <- select(t2, Nome, Cognome, Valutazione.Ricerca, Valutazione.Testo, Voto)
+
+write.table(tout, "tutti-i-voti.txt", row.names = FALSE, quote = FALSE, sep = ",")
+
+e poi nella shell, per fare un tabulato accettabile:
+
+cat tutti-i-voti.txt | awk 'BEGIN { FS = "," } ; {printf "%-20s %-20s %-10s %-10s %-10s\n", $1, $2, $3, $4, $5}' > tutti-i-voti-tab.txt
+
+quasi perfetto, perde un carattere dove c'è una lettera accentata, sarà da aggiustare, a che vedere con encoding... credo....
+
+### Invio messaggi
+
+Per generare una serie di messaggi in file di nome messaggio-1, messaggio-2,...
+
+for(ii in 1:nrow(tidy.all)){build.message(as.character(tidy.all$Nome[ii]), tidy.all$Email[ii], tidy.all$Voto[ii], ii)}
+
+Per inviare un messaggio che si trova nel file "./messaggio":
+
+system2("./mess.sh")
+
+dove in mess.sh:
+
+cat messaggio | msmtp andreas.formiconi@gmail.com
+
+e la struttura di "messaggio" deve essere del tipo
+
+```
+From: Andreas <andreas.formiconi@gmail.com>
+To: andreas.formiconi@gmail.com
+Subject: Software elaborazione Backup Moodle
+
+Cara/o Andreas,
+
+guarda se ti ricordi di caricare questa roba in Github... 
+
+Ciao
+Iamarf 
+```
+
+Per inviare una serie di messaggi, in modo che fra un invio e l'altro intercorra un tempo
+variabile - fra 60 e 80 secondi circa, per ora...
+
+```
+rr <- runif(nrow(tidy.all), min = 60, max = 80)
+send.mail(tidy.all, 1, 120)
+
+```
+I valori min=60 e max=80 li ho desunti dai limiti dichiarati da Google in 
+
+https://support.google.com/a/answer/166852?hl=it
+https://support.google.com/a/answer/2956491#sendinglimitsforrelay
+
+Per lo stesso motivo lancio circa 120 messaggi al giorno, anche se non so poi quali siano i limiti reali nella fattispecie, ora e in questo caso, Google non specifica.
+
+Per testare il messaggio di prova:
+
+```
+build.message(as.character(tidy.all$Nome[1]), tidy.all$Email[1], tidy.all$Voto[1])
+```
+
+### Casi particolari occorsi durante l'invio delle email
+
+### Non trova smtp.google.com
+
+Per ora capitato due volte su 220. Basta rilanciare send.mail sui casi singoli, prima cercando la riga corrispondente...
+
+which(grepl(".*iccinin.*", ttt$Cognome))
+
+e poi, supposto che sia per esempio la 124...
+
+send.mail(tidy.all, 124, 124)
+
+### L'indirizzo email è sbagliato
+
+Cercare come prima la riga in questione e cercare di correggere l'errore
+
+Nell'unico caso che ho trovato, si trattava di una duplice riga ove la prima aveva valori sballati - in futuro sarà bene ripulire in Moodle le iscrizioni multiple spurie, e evitare che esse vegano fatte.
+
+Per risolvere questo caso ho usato le seguenti istruzioni:
+
+```
+ttt <- tidy.data
+
+filter(tidy.all, Cognome == "Piccinin")
+ttt[ttt$Nome == "Sebastian" & ttt$Cognome == "Piccinin",]
+which(grepl(".*iccinin.*", ttt$§Cognome))
+ttt[ttt$Nome == "Sebastian" & ttt$Cognome == "Piccinin",] <- ttt[ttt$Nome == "Jesus Sebastian" & ttt$Cognome == "Piccinin",]
+tidy.all.bak <- tidy.all
+tidy.all <- ttt
+ ## controlli vari che vada tutto bene...
+rm(ttt)
+rm(tidy.all.bak)
+```
+
+Cioè ho ricopiato la riga buona in quella cattiva.
+
+Per prudenza lavorato su copia ttt...
+
+Ora aggiungo casi particolari nella copia
+
+tidy.all.particolari
+Ilaria Di Girolamo
+...
+
+---
+
+Per filtrare:
+
+filter(tidy.all, Cognome == "Malucchi")
+filter(tidy.all, grepl("alucchi", Cognome))
+
+
+---
+2015-05-13 23:01:03 CEST
+
+A questo punto con il ciclo seguente posso fare l'invio personalizzato dei risultati:
+
+for (ii in 1:nrow(dok)) {rr = dok[ii,]; print(rr[2]); nn <- split.name(rr[[2]]); build.message(nn, rr[[9]], ii)}
+
+manca solo da aggiungere l'istruzione di invio delle email, con...
+
+system2("./mess.sh")
+
+naturalmente non avrò bisogno di creare file diversi come ho fatto in questo ciclo, ma scriverò sempre il file "messaggio" che poi viene usato dall script "mess":
+
+cat messaggio | msmtp andreas.formiconi@gmail.com
+
+Devo documentare per bene split.name() e build.message()
+
+2015-05-08 ven 01:37
+
+Devo inserire l'invio automatico di email, vedi esempio:
+
+cat messaggio | msmtp lonfo@autistici.org
+
+dove il file messaggio è:
+
+From: Andreas <andreas.formiconi@gmail.com>
+To: lonfo@autistici.org
+Subject: Via via...
+
+Corpo del messaggio un po' più corposo!
+
+Andreas
+
+Vedi prove invio email di oggi verso le 13...
+
+2015-05-22 12:28:07 CEST
+### Produzione dei file CSV da inviare al sistema di verbalizzazione d'ateneo
+
+ ## legge il file con i seguenti parametri: 
+ ## skip: skippando la prima linea (contiene il codice dell'esame,
+ ## header: dichiarando che la prima riga (dopo lo skip) contiene i nomi 
+ ##         delle variabili,
+ ## sep: il carattere separatore dei campi è ";"
+ ## check.names: non rendere sintatticamente validi i nomi delle variabili
+ ##              non lo sono ma tanto vanno riscritti tal quali nel 
+ ##              formato CSV di Unifi
+ ## na.strings: forza l'intepretazione dei campi con "" o " " come NA
+ 
+lista <- read.table("lista.csv", skip = 1, header = TRUE, sep = ";", check.names = FALSE, na.strings = c("", " "))
+
+ ## Testato con
+head(select(lista, MATRICOLA, COGNOME, NOME, COMMENTO, `COD CDL STUDENTE`, `DATA PRENOTAZIONE`, `COD INSEGNAMENTO`, `VOTO (in trentesimi)`, `DATA ESITO`, `A.A. PRECEDENTE`),1)
+ ## o...
+head(select(lista, MATRICOLA, NOME, COGNOME, COMMENTO, `DATA ESITO`, `A.A. PRECEDENTE`),1)
+
+ ## elimina il prefisso "="" nei valori numerici
+lls <- mutate(lista, MATRICOLA = gsub("=", "", MATRICOLA), "DATA PRENOTAZIONE" = gsub("=", "", `DATA PRENOTAZIONE`), "VOTO (in trentesimi)" = gsub("=", "", `VOTO (in trentesimi)`), "DATA ESITO" = gsub("=", "", `DATA ESITO`))
+
+ ## Testato con
+head(select(lls, MATRICOLA, COGNOME, NOME, COMMENTO, `COD CDL STUDENTE`, `DATA PRENOTAZIONE`, `COD INSEGNAMENTO`, `VOTO (in trentesimi)`, `DATA ESITO`, `A.A. PRECEDENTE`),1)
+
+ ## Preparo il data frame per la scrittura su file facendo a mano il quoting
+ ## delle veriabili e aggiungendo il prefisso "=" ai valori numerici dopo averli quotati
+lls <- mutate(lls, MATRICOLA = gsub("(.*)", "=\"\\1\"", MATRICOLA), COGNOME = gsub("(.*)", "\"\\1\"", COGNOME), NOME = gsub("(.*)", "\"\\1\"", NOME), COMMENTO = gsub("(.*)", "\"\\1\"", COMMENTO), "COD CDL STUDENTE" = gsub("(.*)", "\"\\1\"", `COD CDL STUDENTE`), "CDL STUDENTE" = gsub("(.*)", "\"\\1\"", `CDL STUDENTE`), "DATA PRENOTAZIONE" = gsub("(.*)", "=\"\\1\"", `DATA PRENOTAZIONE`), "COD INSEGNAMENTO" = gsub("(.*)", "\"\\1\"", `COD INSEGNAMENTO`), INSEGNAMENTO = gsub("(.*)", "\"\\1\"", INSEGNAMENTO), "VOTO (in trentesimi)" = gsub("(.*)", "=\"\\1\"", `VOTO (in trentesimi)`), "DATA ESITO" = gsub("(.*)", "=\"\\1\"", `DATA ESITO`), "A.A. PRECEDENTE" = gsub("(.*)", "\"\\1\"", `A.A. PRECEDENTE`), ARGOMENTI = gsub("(.*)", "\"\\1\"", ARGOMENTI), "PRESA VISIONE" = gsub("(.*)", "\"\\1\"", `PRESA VISIONE`), VERBALIZZATO = gsub("(.*)", "\"\\1\"", VERBALIZZATO), EMAIL = gsub("(.*)", "\"\\1\"", EMAIL))
+
+ ## Correggo ritogliendo il prefisso "=" a eventuali casi "Non assegnato"
+ lls <- mutate(lls, "VOTO (in trentesimi)" = gsub("=\"Non assegnato\"", "\"Non assegnato\"", `VOTO (in trentesimi)`))
+
+ ## Testato con
+head(select(lls, MATRICOLA, COGNOME, NOME, COMMENTO, `COD CDL STUDENTE`, `DATA PRENOTAZIONE`, `COD INSEGNAMENTO`, `VOTO (in trentesimi)`, `DATA ESITO`, `A.A. PRECEDENTE`),1)
+
+ ## trasformo gli <NA> in ""
+lls[is.na(lls)] <- "\"\""
+
+write.table(lls, "l.csv", row.names = FALSE, col.names = FALSE, quote = FALSE, sep = ";")
+
+###
+2015-05-28 19:21:15 CEST
+
+Ok, sono in grado di caricare un file CSV corretto nel sistema di ateneo.
+
+Sequenza standard (una volta che tidy.all.particolari c'è):
+write.verbali(header, verbali, "verbali.csv")
+lista <- read.lista.verbali("lista.csv")
+verbali <- build.verbali(lista, tidy.all.particolari)
+write.verbali(header, verbali, "verbali.csv")
+
+###
+2015-06-01 16:21:43 CEST
+
+Inserisco ora gli argomenti nei verbali
+
+Con questa istruzione, per ogni verbale, individuo la riga giusta in tidy.all.particolari accoppiando le matricole e estraggo il corrispondente id dell'argomento
+
+for(ii in 1:nrow(vv)) {cc <- tidy.all.particolari$Argomento[grepl(paste(".*", vv$MATRICOLA[ii], ".*", sep = ""), tidy.all.particolari$Matricola, perl = TRUE, ignore.case =TRUE)]; print(cc)}
+
+Importo il file KEYWORDS in un data frame
+
+kw <- read.csv("KEYWORDS")
+
+Per cercare gli studenti con un certo indice di argomento:
+
+tidy.all.particolari[grepl(paste("^", "10", "$", sep = ""), tidy.all.particolari$Argomento, perl = TRUE, ignore.case =TRUE),]
+
+Riunisco queste cose...
+
+for(ii in 1:nrow(vv)) {cc <- tidy.all.particolari$Argomento[grepl(paste(".*", vv$MATRICOLA[ii], ".*", sep = ""), tidy.all.particolari$Matricola, perl = TRUE, ignore.case =TRUE)]; print(as.character(kw[[as.numeric(cc),2]]))}
+
+Non mi resta che inserire tali argomenti in vv$ARGOMENTI
+
+for(ii in 1:nrow(vv)) {cc <- tidy.all.particolari$Argomento[grepl(paste(".*", vv$MATRICOLA[ii], ".*", sep = ""), tidy.all.particolari$Matricola, perl = TRUE, ignore.case =TRUE)]; aa <- as.character(kw[[as.numeric(cc),2]]); vv$ARGOMENTI[ii] <- paste(aa, "Tecniche di controllo del campo di ricerca in Pubmed.", sep = " ")}
+
+In conclusione
+
+> lista <- read.lista.verbali("lista.csv")
+> header <- read.header.verbali("lista.csv")
+> verbali <- build.verbali(lista, tidy.all.particolari)
+> verbali <- fill.verbali(tidy.all.particolari, verbali)
+> write.verbali(header, verbali, "verbali.csv")
+
+Ho condensato questo set di funzioni in
+
+> lista2verbali(tidy.all.particolari, "lista.csv", "verbali1.csv")
+
+2015-06-02 12:38:23 CEST
+
+insegnamento,descrizione,data appello,n. iscritti,n. da registrare,n. da visionare,n. da verbalizzare
+(B011423) INFORMATICA(cdl: B120) Presidente,- - - - Sessione estiva,04/6/2015,192,2,145,45 
+
