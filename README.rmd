@@ -9,22 +9,15 @@ output: html_document
 output: html_document
 ---
 ## Elaborazione dati di grading da un backup da Moodle
-## utilizzato nell'insegnamento di informatica al primo
-## anno di Medicina a Firenze
+Un sistema sviluppato per la gestione degli elaborati e del grading nell'insegnamento di informatica al primo anno di Medicina a Firenze.
 
----
+Versione beta 0.9
 
-## Versione molto preliminare
-## Documentazione da rifire e da corredare con un
-## set di dati fittizi a scopo dimostrativo
-## Attualmente è poco più del semplice diario di lavoro
-## Manca anche il databook
+Documentazione da rifinire e da corredare con un set di dati fittizi a scopo dimostrativo.
+Attualmente è poco più del semplice diario di lavoro.
+Manca ancora il databook
 
-## Rendo tuttavia disponibile il codice insieme al diario
-## di lavoro in occasione della presentazione di un paper alla
-## Multiconferenza Italiana su e-Learning, Media Education e MoodleMoot
-## che avrà luogo a Genova dal 9 all'11 settembre 2015.
-
+Rendo tuttavia disponibile il codice insieme al diario di lavoro in occasione della presentazione di un paper alla "Multiconferenza Italiana su e-Learning, Media Education e MoodleMoot" che avrà luogo a Genova dal 9 all'11 settembre 2015, affinché i revisori del lavoro o chiunque lo desideri possa scaricare e studiare il codice.
 
 ---
 
